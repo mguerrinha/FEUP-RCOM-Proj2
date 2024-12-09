@@ -15,6 +15,13 @@ int main(int argc, char *argv[]) {
         exit(-1);
     }
 
+    // Print the extracted components
+    printf("Username: %s\n", url.user);
+    printf("Password: %s\n", url.password);
+    printf("Host: %s\n", url.host);
+    printf("Resource: %s\n", url.resource);
+
+    return 0;
 
 
 }

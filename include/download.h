@@ -7,11 +7,13 @@
 
 #include <string.h>
 
+#define MAX_LENGTH 256
+
 struct URL {
-    char *user;
-    char *password;
-    char *host;
-    char *path;
+    char user[MAX_LENGTH];
+    char password[MAX_LENGTH];
+    char host[MAX_LENGTH];
+    char resource[MAX_LENGTH];
     int port;
 };
 
