@@ -86,103 +86,6 @@ int create_socket(char *ip, int port) {
     return socketfd;
 }
 
-/*
-int read_ftp_response(int socketfd, char *response) {
-    char byte;
-    int idx = 0, response_code;
-    ResponseState state = START;
-    memset(response, 0, MAX_LENGTH);
-
-    while (state != COMPLETE)
-    {
-        read(socketfd, &byte, 1);
-
-        switch (state)
-        {
-        case START:
-            if (byte == ' ') {
-                state = SINGLE_LINE;
-            }
-            else if (byte == '-') {
-                state = MULTIPLE_LINE;
-            }
-            else if (byte == '\n') {
-                state = COMPLETE;
-            }
-            else {
-                response[idx++] = byte;
-            }
-            break;
-        
-        case SINGLE_LINE:
-            if (byte == '\n') {
-                state = COMPLETE;
-            }
-            else {
-                response[idx++] = byte;
-            }
-            break;
-        
-        case MULTIPLE_LINE:
-            if (byte == '\n') {
-                memset(response, 0, MAX_LENGTH);
-                idx = 0;
-                state = START;
-            }
-            else {
-                response[idx++] = byte;
-            }
-            break;
-        
-        default:
-            break;
-        }
-    }
-    
-    sscanf(response, "%3d", &response_code);
-    printf("Response: %s\n", response_code);
-
-    return response_code;
-}
-*/
-/*
-int read_ftp_response (int socket, char * response){
-    int total_bytes_read = 0, bytes_read = 0; // Where the number of total and partial bytes read will be saved
-    int n_tries = 3; // Numbered of tries
-    usleep(100000); // Wait for a bit to ensure it can start with no problems
-
-    // Read form server while number of tries > 0
-    while (n_tries > 0) {
-        // Try to read data from the socket
-        bytes_read = recv(socket, response + total_bytes_read,MAX_LENGTH - total_bytes_read, MSG_DONTWAIT);
-        
-        if(bytes_read <= 0) { // Error, no bytes read
-            n_tries--;
-            usleep(100000);
-        } else { // Could read bytes, yay
-            n_tries = 3;
-        }
-
-        // Accumulate the total bytes read 
-        total_bytes_read += bytes_read;
-        bytes_read = 0; // Clean before next iteration in case of problems
-    }
-
-    response[total_bytes_read] = '\0';
-    if(total_bytes_read > 0) { // Print the response or no response
-        printf("Server Response: %s\n", response); 
-    } else {
-        printf("Empty response\n");
-    }
-
-    int response_code = 0;
-
-    sscanf(response, "%d", &response_code); // Get the response code
-
-    return response_code;
-}
-*/
-
 int read_ftp_response(int socketfd, char *response) {
     int total_bytes_read = 0, bytes_read = 0;
     int response_code = 0;
@@ -360,6 +263,7 @@ int get_file(int socket_control, int socket_data, const char *path) {
             return -1;
         }
     }
+
     // Check server response after transfer
     char server_response[MAX_LENGTH];
     int response_code = read_ftp_response(socket_control, server_response);
