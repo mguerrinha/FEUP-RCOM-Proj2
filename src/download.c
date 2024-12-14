@@ -353,7 +353,13 @@ int get_file(int socket_control, int socket_data, const char *path) {
 
     // Close the file
     fclose(file);
-
+    
+    if (socket_data > 0) {
+        if (close(socket_data) < 0) {
+            perror("Failed to close data connection");
+            return -1;
+        }
+    }
     // Check server response after transfer
     char server_response[MAX_LENGTH];
     int response_code = read_ftp_response(socket_control, server_response);
@@ -376,13 +382,6 @@ int close_connection(const int socket_control, const int socket_data) {
         response_code = read_ftp_response(socket_control, server_response);
         if (response_code != 221) { // 221 indicates successful logout
             printf("Failed to close connection: %s\n", server_response);
-            return -1;
-        }
-    }
-
-    if (socket_data > 0) {
-        if (close(socket_data) < 0) {
-            perror("Failed to close data connection");
             return -1;
         }
     }
