@@ -86,6 +86,7 @@ int create_socket(char *ip, int port) {
     return socketfd;
 }
 
+/*
 int read_ftp_response(int socketfd, char *response) {
     char byte;
     int idx = 0, response_code;
@@ -139,9 +140,95 @@ int read_ftp_response(int socketfd, char *response) {
     }
     
     sscanf(response, "%3d", &response_code);
+    printf("Response: %s\n", response_code);
 
     return response_code;
 }
+*/
+/*
+int read_ftp_response (int socket, char * response){
+    int total_bytes_read = 0, bytes_read = 0; // Where the number of total and partial bytes read will be saved
+    int n_tries = 3; // Numbered of tries
+    usleep(100000); // Wait for a bit to ensure it can start with no problems
+
+    // Read form server while number of tries > 0
+    while (n_tries > 0) {
+        // Try to read data from the socket
+        bytes_read = recv(socket, response + total_bytes_read,MAX_LENGTH - total_bytes_read, MSG_DONTWAIT);
+        
+        if(bytes_read <= 0) { // Error, no bytes read
+            n_tries--;
+            usleep(100000);
+        } else { // Could read bytes, yay
+            n_tries = 3;
+        }
+
+        // Accumulate the total bytes read 
+        total_bytes_read += bytes_read;
+        bytes_read = 0; // Clean before next iteration in case of problems
+    }
+
+    response[total_bytes_read] = '\0';
+    if(total_bytes_read > 0) { // Print the response or no response
+        printf("Server Response: %s\n", response); 
+    } else {
+        printf("Empty response\n");
+    }
+
+    int response_code = 0;
+
+    sscanf(response, "%d", &response_code); // Get the response code
+
+    return response_code;
+}
+*/
+
+int read_ftp_response(int socketfd, char *response) {
+    int total_bytes_read = 0, bytes_read = 0;
+    int response_code = 0;
+
+    // Clear the response buffer
+    memset(response, 0, MAX_LENGTH);
+
+    while (1) {
+        // Attempt to read data from the socket
+        bytes_read = recv(socketfd, response + total_bytes_read, MAX_LENGTH - total_bytes_read - 1, 0);
+        
+        if (bytes_read > 0) {
+            // Successfully read some data, reset elapsed time
+            total_bytes_read += bytes_read;
+
+            // Check if the response ends with a newline (indicating completion)
+            if (response[total_bytes_read - 1] == '\n') {
+                break;
+            }
+        } else if (bytes_read == 0) {
+            // Connection closed by the server
+            printf("Connection closed by server.\n");
+            break;
+        } else {
+            // Handle other socket errors
+            perror("recv failed");
+            return -1;
+        }
+    }
+
+    // Null-terminate the response buffer
+    response[total_bytes_read] = '\0';
+
+    // Check if data was received
+    if (total_bytes_read > 0) {
+        printf("Server Response: %s\n", response);
+
+        // Parse the response code (first 3 digits)
+        sscanf(response, "%d", &response_code);
+    } else {
+        printf("No response received from server.\n");
+    }
+
+    return response_code;
+}
+
 
 int authenticate_ftp_user(int socketfd, const char *user, const char *password) {
     char response[MAX_LENGTH];
@@ -150,7 +237,7 @@ int authenticate_ftp_user(int socketfd, const char *user, const char *password) 
     printf("Authenticating user\n");
 
     if (user[0] == '\0' || user == NULL) {
-        snprintf(command, MAX_LENGTH, "USER %s\r\n", DEAFAULT_USERNAME);
+        snprintf(command, MAX_LENGTH, "USER %s\r\n", DEFAULT_USERNAME);
         printf("Using default username\n");
     }
     else {
@@ -168,7 +255,7 @@ int authenticate_ftp_user(int socketfd, const char *user, const char *password) 
     }
 
     if (password[0] == '\0'  || password == NULL) {
-        snprintf(command, MAX_LENGTH, "PASS %s\r\n", DEAFAULT_PASSWORD);
+        snprintf(command, MAX_LENGTH, "PASS %s\r\n", DEFAULT_PASSWORD);
     }
     else {
         snprintf(command, MAX_LENGTH, "PASS %s\r\n", password);
@@ -222,55 +309,90 @@ int transfer_request(int socketfd, const char *path) {
         return -1;
     }
 
-    if (read_ftp_response(socketfd, response) != START_TRANSFER_CODE) {
-        printf("Failed to start transfer\n");
+    int response_code = read_ftp_response(socketfd, response);
+
+    if (response_code != START_TRANSFER_CODE && response_code != DATA_CONNECTION_ESTABLISHED_CODE) {
+        printf("Failed to start transfer %d\n", response_code);
         return -1;
     }
 
     return 0;
 }
 
-int get_file(int socket_A, int socket_B, const char *path) {
+int get_file(int socket_control, int socket_data, const char *path) {
+    // Extract filename from the given path
     const char *last_slash = strrchr(path, '/');
-
     const char *filename = last_slash == NULL ? path : last_slash + 1;
 
     printf("Downloading file %s\n", filename);
-    
-    FILE *file = fopen(filename, "w");
 
+    // Open the file for writing
+    FILE *file = fopen(filename, "wb");
     if (file == NULL) {
-        printf("Error opening file %s\n", filename);
+        perror("Error opening file");
         return -1;
     }
 
     char buffer[MAX_LENGTH];
-
     int bytes_read;
 
-    while ((bytes_read = read(socket_B, buffer, MAX_LENGTH)) > 0) {
-        if (fwrite(buffer, 1, bytes_read, file) < 0) {
-            printf("Error writing to file %s\n", filename);
+    // Read data from the data socket and write to the file
+    while ((bytes_read = read(socket_data, buffer, sizeof(buffer))) > 0) {
+        if (fwrite(buffer, 1, bytes_read, file) != bytes_read) {
+            perror("Error writing to file");
+            fclose(file);
             return -1;
         }
     }
 
-    fclose(file);
-    
-    if (read_ftp_response(socket_A, buffer) != TRANSFER_COMPLETED_CODE) {
-        printf("Failed to transfer file\n");
+    if (bytes_read < 0) {  // Handle `read` error
+        perror("Error reading from data socket");
+        fclose(file);
         return -1;
     }
 
+    // Close the file
+    fclose(file);
+
+    // Check server response after transfer
+    char server_response[MAX_LENGTH];
+    int response_code = read_ftp_response(socket_control, server_response);
+    if (response_code != 226) { // 226 indicates transfer complete
+        printf("File transfer not completed successfully. Server Response: %s\n", server_response);
+        return -1;
+    }
+
+    printf("File %s downloaded successfully.\n", filename);
     return 0;
 }
 
-int close_connection(int socket_A, int socket_B) {
-    write(socket_A, "QUIT\r\n", 6);
-    char response[MAX_LENGTH];
-    if (read_ftp_response(socket_A, response) != CLOSE_DATA_CONNECTION_CODE) {
-        printf("Failed to close connection\n");
-        return -1;
+
+int close_connection(const int socket_control, const int socket_data) {
+    char server_response[MAX_LENGTH];
+    int response_code;
+
+    if (socket_control > 0) {
+        write(socket_control, "QUIT\r\n", 6);
+        response_code = read_ftp_response(socket_control, server_response);
+        if (response_code != 221) { // 221 indicates successful logout
+            printf("Failed to close connection: %s\n", server_response);
+            return -1;
+        }
     }
-    return close(socket_A) | close(socket_B);
+
+    if (socket_data > 0) {
+        if (close(socket_data) < 0) {
+            perror("Failed to close data connection");
+            return -1;
+        }
+    }
+
+    if (socket_control > 0) {
+        if (close(socket_control) < 0) {
+            perror("Failed to close control connection");
+            return -1;
+        }
+    }
+
+    return 0;
 }

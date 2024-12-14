@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -8,20 +9,25 @@
 
 #include <string.h>
 
-#define MAX_LENGTH 256
+#define MAX_LENGTH 1024
+#define TOTAL_TIMEOUT 5000000
+#define RETRY_DELAY 100000
 
 #define FTP_PORT 21
 
-#define DEAFAULT_USERNAME "anonymous"
-#define DEAFAULT_PASSWORD "anonymous"
+#define DEFAULT_USERNAME "anonymous"
+#define DEFAULT_PASSWORD "anonymous"
 
 #define LOGGED_IN_CODE 220
 #define PASSWORD_CODE 331
 #define LOGIN_SUCCESSFULL_CODE 230
 #define PASSIVE_MODE_CODE 227
+#define DATA_CONNECTION_ESTABLISHED_CODE 125
 #define START_TRANSFER_CODE 150
 #define TRANSFER_COMPLETED_CODE 226
 #define CLOSE_DATA_CONNECTION_CODE 221
+
+
 
 struct URL {
     char user[MAX_LENGTH];
@@ -50,6 +56,6 @@ int set_passive_mode(int socketfd, char *ip, int *port);
 
 int transfer_request(int socketfd, const char *path);
 
-int get_file(int socket_A, int socket_B, const char *path);
+int get_file(int socket_control, int socket_data, const char *path);
 
-int close_connection(int socket_A, int socket_B);
+int close_connection(int socket_control, int socket_data);
