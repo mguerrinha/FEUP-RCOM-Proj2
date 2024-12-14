@@ -267,7 +267,7 @@ int get_file(int socket_control, int socket_data, const char *path) {
     // Check server response after transfer
     char server_response[MAX_LENGTH];
     int response_code = read_ftp_response(socket_control, server_response);
-    if (response_code != 226) { // 226 indicates transfer complete
+    if (response_code != TRANSFER_COMPLETED_CODE) {
         printf("File transfer not completed successfully. Server Response: %s\n", server_response);
         return -1;
     }

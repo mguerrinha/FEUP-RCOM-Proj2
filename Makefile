@@ -13,8 +13,8 @@ BIN = bin/
 #URL = ftp://rcom:rcom@ftp.netlab.fe.up.pt/README
 #URL = ftp://rcom:rcom@ftp.netlab.fe.up.pt/pipe.txt
 #URL = ftp://rcom:rcom@ftp.netlab.fe.up.pt/files/crab.mp4
-#URL = ftp://anonymous:anonymous@ftp.bit.nl/speedtest/100mb.bin
-URL = ftp://demo:password@test.rebex.net/readme.txt
+URL = ftp://anonymous:anonymous@ftp.bit.nl/speedtest/100mb.bin
+#URL = ftp://demo:password@test.rebex.net/readme.txt
 #URL = ftp://ftp.up.pt/pub/gnu/emacs/elisp-manual-21-2.8.tar.gz
 
 # Targets
