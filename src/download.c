@@ -87,8 +87,7 @@ int create_socket(char *ip, int port) {
 }
 
 int read_ftp_response(int socketfd, char *response) {
-    int total_bytes_read = 0, bytes_read = 0;
-    int response_code = 0;
+    int total_bytes_read = 0, bytes_read = 0, response_code = 0, end_line = 0;
 
     // Clear the response buffer
     memset(response, 0, MAX_LENGTH);
@@ -100,6 +99,18 @@ int read_ftp_response(int socketfd, char *response) {
         if (bytes_read > 0) {
             // Successfully read some data, reset elapsed time
             total_bytes_read += bytes_read;
+            
+            for (int i = total_bytes_read - bytes_read; i < total_bytes_read; i++) {
+                unsigned char c = response[i];
+                if (isdigit(c) && isdigit(response[i + 1]) && isdigit(response[i + 2]) && response[i + 3] == ' ' && (i == 0 || response[i - 1] == '\n')) {
+                    end_line = 1;
+                    continue;
+                }
+                else if (c == '\n' && response[i - 1] == '\r' && end_line) {
+                    response[i+1] = '\0';
+                    break;
+                }
+            }
 
             // Check if the response ends with a newline (indicating completion)
             if (response[total_bytes_read - 1] == '\n') {
