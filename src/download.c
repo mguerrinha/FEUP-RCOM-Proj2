@@ -92,7 +92,7 @@ int read_ftp_response(int socketfd, char *response) {
     // Clear the response buffer
     memset(response, 0, MAX_LENGTH);
 
-    while (1) {
+    while (end_line == 0) {
         // Attempt to read data from the socket
         bytes_read = recv(socketfd, response + total_bytes_read, MAX_LENGTH - total_bytes_read - 1, 0);
         
@@ -111,11 +111,6 @@ int read_ftp_response(int socketfd, char *response) {
                     break;
                 }
             }
-
-            // Check if the response ends with a newline (indicating completion)
-            if (response[total_bytes_read - 1] == '\n') {
-                break;
-            }
         } else if (bytes_read == 0) {
             // Connection closed by the server
             printf("Connection closed by server.\n");
@@ -126,9 +121,6 @@ int read_ftp_response(int socketfd, char *response) {
             return -1;
         }
     }
-
-    // Null-terminate the response buffer
-    response[total_bytes_read] = '\0';
 
     // Check if data was received
     if (total_bytes_read > 0) {
