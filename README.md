@@ -1,2 +1,2 @@
 # Computer Networks
-## Grade(17,2/20)
+## Grade: 17.2/20
